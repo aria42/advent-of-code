@@ -11,6 +11,7 @@ fn main() {
     let day = args[1].parse::<i32>().unwrap();
     match day {
         1 => days::day_one(),
+        2 => days::day_two(),
         _ => {
             eprintln!("Invalid day: {}", day);
             process::exit(1);
