@@ -12,6 +12,7 @@ fn main() {
     match day {
         1 => days::day_one(),
         2 => days::day_two(),
+        3 => days::day_three(),
         _ => {
             eprintln!("Invalid day: {}", day);
             process::exit(1);

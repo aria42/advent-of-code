@@ -2,6 +2,7 @@ use std::cmp;
 use std::fs;
 use std::io;
 use std::io::BufRead;
+use std::str::FromStr;
 
 fn file_lines(path: &str) -> Vec<String> {
     let f = fs::File::open(path).unwrap();
@@ -82,4 +83,163 @@ pub fn day_two() {
     }
     let secret = search_programs(&mut codes);
     println!("part2: {}", secret);
+}
+
+pub fn day_three() {
+    #[derive(Debug, Copy, Clone)]
+    enum Stride {
+        Horizontal(i32),
+        Vertical(i32)
+    }    
+    impl FromStr for Stride {
+        type Err = String;
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            let dir = s.chars().next().unwrap();
+            let num = s[1..].parse::<i32>().unwrap();
+            match dir {
+                'U' => Ok(Stride::Vertical(num)),
+                'D' => Ok(Stride::Vertical(-num)),
+                'L' => Ok(Stride::Horizontal(num)),
+                'R' => Ok(Stride::Horizontal(-num)),                    
+                _ => Err(format!("Invalid direction character: {}", dir))
+            }
+        }
+    }
+    impl Stride {
+        fn parse_line(line: &str) -> Vec<Stride> {
+            return line.split(",")
+                .map(|elem| elem.parse().unwrap())
+                .collect();
+        }
+
+        fn advance(&self, pt: &Point) -> Point {
+            match self {
+                Stride::Horizontal(n) => Point{x: pt.x + *n, y: pt.y},
+                Stride::Vertical(n) => Point{x: pt.x, y: pt.y + *n},
+            }
+        }
+    }
+    #[derive(Debug, PartialEq, Copy, Clone, Eq, Hash)]
+    struct Point {
+        x: i32,
+        y: i32
+    }
+    #[derive(Debug)]
+    struct LineSegment {
+        origin: Point,
+        stride: Stride
+    }
+    #[derive(Debug)]
+    struct Crossing {
+        // point of intersection
+        point: Point,
+        // distance in left wire
+        left_dist: usize, 
+        // distance in right wire
+        right_dist: usize
+    }
+    impl LineSegment {
+        fn cross_point(&self, other: &LineSegment) -> Option<Point> {
+            match (&self.stride, &other.stride) {
+                (Stride::Vertical(m), Stride::Horizontal(n)) => {
+                    let Point {x:x0, y:y0} = self.origin;
+                    let Point {x:x1, y:y1} = other.origin;
+                    let y0_min = y0.min(y0 + *m);
+                    let y0_max = y0.max(y0 + *m);
+                    let x1_min = x1.min(x1 + *n);
+                    let x1_max = x1.max(x1 + *n);
+                    // check intersection
+                    if x0 >= x1_min && x0 <= x1_max && y1 >= y0_min && y1 <= y0_max {
+                        Some(Point {x: x0, y: y1})
+                    } else {
+                        None
+                    }
+                },
+                // flip arguments to avoid duping logic
+                (Stride::Horizontal(_), Stride::Vertical(_)) => other.cross_point(self),
+                _ => None
+            }
+        }
+    }
+    struct Wire {
+        segments: Vec<LineSegment>
+    }
+    impl Wire {
+        fn parse(line: &str) -> Wire {            
+            let mut saved_pt = Point{x:0, y:0};
+            let segments = Stride::parse_line(line)
+                .iter()
+                .map(|stride| {
+                    let pt = saved_pt;
+                    saved_pt = stride.advance(&pt);
+                    LineSegment {origin: pt, stride: *stride}
+                })
+                .collect();
+            Wire {segments: segments}
+        }
+
+        fn crosses(&self, other: &Wire) -> Vec<Crossing> {
+            let mut ret: Vec<Crossing> = Vec::new();
+            let mut self_dist = 0;            
+            for left in &self.segments {
+                let mut other_dist = 0;
+                for right in &other.segments {
+                    match left.cross_point(&right) {
+                        Some(pt) => {
+                            let left_wire_displacement = match left.stride {
+                                Stride::Horizontal(_) => (pt.x - left.origin.x).abs(),
+                                Stride::Vertical(_) => (pt.y - left.origin.y).abs(),
+                            };
+                            let right_wire_displacement = match right.stride {
+                                Stride::Horizontal(_) => (pt.x - right.origin.x).abs(),
+                                Stride::Vertical(_) => (pt.y - right.origin.y).abs(),
+                            };                            
+                            let cross = Crossing {
+                                point: pt, 
+                                left_dist: (self_dist + left_wire_displacement) as usize,
+                                right_dist: (other_dist + right_wire_displacement) as usize
+                            };
+                            ret.push(cross);
+                        }
+                        None => {}
+                    }
+                    other_dist += match right.stride {
+                        Stride::Horizontal(n) => (n.abs() as i32),
+                        Stride::Vertical(n) => (n.abs() as i32)
+                    }
+                }
+                self_dist += match left.stride {
+                    Stride::Horizontal(n) => (n.abs() as i32),
+                    Stride::Vertical(n) => (n.abs() as i32)
+                }
+            }
+            ret
+        }
+    }
+    let wires: Vec<Wire> = file_lines("resources/day3part2.txt")
+        .iter()
+        .map(|l| Wire::parse(l.as_str()))
+        .collect();
+    let n = wires.len();
+    let mut cross_points: Vec<Crossing> = Vec::new();
+    for idx in 0..n {
+        let left_wire = &wires[idx];
+        for inner_idx in (idx+1)..n {
+            let right_wire = &wires[inner_idx];
+            for cross in left_wire.crosses(right_wire) {
+                cross_points.push(cross);
+            }
+        } 
+    }
+    // part1
+    let min_pt = cross_points.iter()
+        .min_by_key(|&c| c.point.x.abs() + c.point.y.abs())
+        .map(|c| c.point)
+        .unwrap();
+    println!("part1: {:?}", min_pt.x.abs() + min_pt.y.abs());
+    // part2
+    let min_wire_dist_pt = cross_points.iter()
+        .min_by_key(|&c| c.left_dist + c.right_dist)
+        .unwrap();
+    println!("part2: {:?}", min_wire_dist_pt.left_dist + min_wire_dist_pt.right_dist);
 }
