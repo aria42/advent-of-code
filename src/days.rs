@@ -259,23 +259,20 @@ pub fn day_four() {
         if digits.len() != 6 {
             return false;
         }
-        let has_repeat = (0..(digits.len()-1)).any(|idx| digits[idx] == digits[idx+1]);
-        if !has_repeat {
-            return false;
-        }
-        if check_triple {
-            let has_triple = (0..(digits.len()-2))
+        let has_satisfying_pair = (0..(digits.len()-1))
                 .any(|idx| {                    
-                    let is_pair = digits[idx] == digits[idx+1] &&  digits[idx] == digits[idx+1];
-                    if !check_triple {
-                        return is_pair
-                    }                 
-                    let check_left = (idx > 1);
-                    is_pair
+                    let ch = digits[idx];
+                    let is_pair = ch == digits[idx+1];
+                    if !check_triple || !is_pair {
+                        return is_pair;
+                    }                    
+                    // left char needs to either not exist or be distinct
+                    let left_good = (idx == 0) ||  (ch != digits[idx-1]);
+                    let right_good = (idx+2 == digits.len()) || (ch != digits[idx+2]);
+                    return left_good && right_good;
                 });    
-            if !has_triple {
-                return false;
-            }
+        if !has_satisfying_pair {
+            return false;
         }
         let all_increasing = (0..(digits.len()-1)).all(|idx| digits[idx] <= digits[idx+1]);
         if !all_increasing {
