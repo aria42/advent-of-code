@@ -242,4 +242,49 @@ pub fn day_three() {
         .min_by_key(|&c| c.left_dist + c.right_dist)
         .unwrap();
     println!("part2: {:?}", min_wire_dist_pt.left_dist + min_wire_dist_pt.right_dist);
+
+
+
+}
+
+pub fn day_four() {
+    fn valid(n: u32, check_triple: bool) -> bool {
+        let mut n = n;
+        let mut digits: Vec<u32> = Vec::new();
+        while n > 0 {
+            digits.push(n % 10);
+            n /= 10;
+        }
+        digits.reverse();
+        if digits.len() != 6 {
+            return false;
+        }
+        let has_repeat = (0..(digits.len()-1)).any(|idx| digits[idx] == digits[idx+1]);
+        if !has_repeat {
+            return false;
+        }
+        if check_triple {
+            let has_triple = (0..(digits.len()-2))
+                .any(|idx| {                    
+                    let is_pair = digits[idx] == digits[idx+1] &&  digits[idx] == digits[idx+1];
+                    if !check_triple {
+                        return is_pair
+                    }                 
+                    let check_left = (idx > 1);
+                    is_pair
+                });    
+            if !has_triple {
+                return false;
+            }
+        }
+        let all_increasing = (0..(digits.len()-1)).all(|idx| digits[idx] <= digits[idx+1]);
+        if !all_increasing {
+            return false;
+        }
+        return true;
+    }
+    let min = 147981;
+    let max = 691423;
+    println!("part1: {}", (min..max).filter(|&x| valid(x, false)).count());
+    println!("part2: {}", (min..max).filter(|&x| valid(x, true)).count());
 }

@@ -13,6 +13,7 @@ fn main() {
         1 => days::day_one(),
         2 => days::day_two(),
         3 => days::day_three(),
+        4 => days::day_four(),
         _ => {
             eprintln!("Invalid day: {}", day);
             process::exit(1);
